@@ -18,9 +18,9 @@ with open('ais_data.json', 'w') as json_file:
         if line.startswith('!AIVDM'):
             print(f'接收訊號時間: {round(time.time() - start_time)}')
             try:
-                # 將收到的訊號解
+                # 將收到的訊號解碼
                 ais_msg = pyais.decode(line.encode('utf-8'))
-                print(f"AIS 訊息: {ais_msg.}")
+                print(f"AIS 訊息: {ais_msg.msg_type}")
                 # dict_ais_msg = ais_msg.__dict__
                 # print(dict_ais_msg)
                 # json.dump(dict_ais_msg, json_file, indent=4)
