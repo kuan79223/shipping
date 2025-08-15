@@ -15,7 +15,7 @@ list_ais_data = list()
 
 # 記錄過去一小時內接收到的訊號數量
 window = deque()  # 用來儲存時間戳
-WINDOW_LEN = timedelta(hours=1)
+WINDOW_LEN = timedelta(hours=1) # 定義過去一小時的時間範圍
 
 # 設定 NDJSON 檔案儲存 AIS 訊息
 LOG_PATH = "ais_data.ndjson"
@@ -24,8 +24,9 @@ LOG_PATH = "ais_data.ndjson"
 # 函數：移除過期的訊號（超過 1 小時的）
 def prune(now: datetime):
     cutoff = now - WINDOW_LEN
+    # window 為雙向序列, 當 window 的時間比前一小時前的時間 cut_off
     while window and window[0] < cutoff:
-        window.popleft()
+        window.popleft() # 彈出序列左邊的元素
 
 try:
     with open(LOG_PATH, 'a', encoding='utf-8') as json_file:
