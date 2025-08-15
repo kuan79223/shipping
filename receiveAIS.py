@@ -29,6 +29,7 @@ def prune(now: datetime):
         window.popleft() # 彈出序列左邊的元素
 
 try:
+    print('Start...')
     with open(LOG_PATH, 'a', encoding='utf-8') as json_file:
         while True:
             line = sock.recv(1024).decode('ascii', errors='ignore').strip()
