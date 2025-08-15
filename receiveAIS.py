@@ -37,7 +37,8 @@ try:
                     ais_msg = pyais.decode(line.encode('utf-8'))
                     print(f'解碼訊號: {ais_msg}')
                     # 記錄本次接收的時間戳（台北時間）
-                    now = datetime.now()
+                    # now = datetime.now()
+                    now = datetime.now().replace(microsecond=0)  # 去除微秒部分
                     window.append(now)
                     prune(now)
 
@@ -59,7 +60,9 @@ try:
                         'spare_1': getattr(ais_msg.spare_1, 'spare_1', None),
                         'raim': ais_msg.raim,
                         'radio': ais_msg.radio,
-                        'recv_ts': now.isoformat()  # 記錄接收時間
+                        'recv_ts': now  # 直接使用 datetime 物件
+                        # 'recv_ts': now.isoformat()  # 記錄接收時間
+
                     }
 
                     # 寫入 NDJSON 文件，每筆訊息一行
