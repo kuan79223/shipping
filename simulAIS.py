@@ -89,35 +89,52 @@ def bytes_stream_to_lines(byte_chunks):
         yield carry  # 末尾殘段（可能不完整）
 
 # ====== 範例：從 socket 讀取、過濾並解碼到 NDJSON ======
-def run_socket_reader(host="192.168.2.1", port=3333, out_ndjson="ais_data.ndjson", run_hours=1):
+def run_socket_reader(host="192.168.2.1", port=3333, out_ndjson="ais_data.ndjson", out_raw="ais_raw_log.txt", run_hours=1):
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.connect((host, port))
 
     connect_time = datetime.now()  # 連線建立時間（程式開始跑的時間）
+    deadline = connect_time + timedelta(minutes=1)
+
     first_ais_time = None  # 第一筆完整 AIS 收到時間
-    saved_count = 0  # 寫入 ndjson 的 AIS 筆數
+    ais_complete = 0  # 完整 AIS 句數（含解碼失敗）
 
     print(f"{connect_time} Start...")
 
     try:
-        with open(out_ndjson, "a", encoding="utf-8") as json_file_write:
+        with open(out_ndjson, "a", encoding="utf-8") as json_file_write, \
+                open(out_raw, "a", encoding="utf-8") as raw_file_write:
+            total_chunks = 0
             # socket主要迴圈
             def chunk_iter():
+                nonlocal total_chunks  # 告訴 Python 這個變數是用外層函式的
                 while True:
                     # 時間到就停止
-                    if datetime.now() >= connect_time + timedelta(hours=run_hours):
+                    if datetime.now() >= deadline:
                         break
                     data = sock.recv(4096)
+                    print(data.decode('ascii', errors='ignore').strip())
                     if not data:
                         break
+                    text = data.decode("ascii", errors="ignore")
+                    # 確保每次寫入都只有一個換行，不會多空行
+                    if not text.endswith("\n"):
+                        text += "\n"
+
+                    raw_file_write.writelines(text)
+                    raw_file_write.flush()
+                    total_chunks += 1
+
                     yield data
 
             line_iter = bytes_stream_to_lines(chunk_iter())
+
             for nmea in iter_complete_ais_from_text(line_iter):
+
                 # 只會是 !AIVDM/!AIVDO 完整句子
                 try:
                     ais_msg = pyais.decode(nmea)  # pyais 解析
-
+                    # print(f'解碼: {ais_msg}')
                     # 記錄第一筆 AIS 的時間
                     if first_ais_time is None:
                         first_ais_time = datetime.now()
@@ -127,7 +144,7 @@ def run_socket_reader(host="192.168.2.1", port=3333, out_ndjson="ais_data.ndjson
                     json.dump(dict_ais_msg, json_file_write, ensure_ascii=False)
                     json_file_write.write('\n')
                     json_file_write.flush()
-                    saved_count += 1
+                    ais_complete += 1  # ← 每筆完整 AIS 就 +1
 
                 except Exception as e:
                     # 校驗錯或解不開就跳過（可視需要記錄）
@@ -145,8 +162,8 @@ def run_socket_reader(host="192.168.2.1", port=3333, out_ndjson="ais_data.ndjson
         print(f"First AIS     : {first_ais_time if first_ais_time else 'N/A (no AIS received)'}")
         print(f"End time      : {end_time}")
         print(f"Run duration  : {end_time - connect_time}")
-        print(f"AIS saved     : {saved_count}")
-        print(f"Output file   : {out_ndjson}")
+        print(f"共接收 {total_chunks} 個 recv chunk，已寫入 {out_raw}")
+        print(f"AIS complete  : {ais_complete}, Output file   : {out_ndjson}")
 
         # ---- 安全讀回 NDJSON 並輸出 Excel/CSV ----
         try:
@@ -218,5 +235,5 @@ def ais_savin_dict(ais_msg, now_time=None):
 
 if __name__ == '__main__':
 
-    # run_socket_reader(host=HOST, port=PORT, out_ndjson="test_ais_output.ndjson",  run_hours=1))
-    run_file_reader(input_txt="sent_ais.txt", out_ndjson="test_ais_output.ndjson")
+    run_socket_reader(host=HOST, port=PORT, out_ndjson="ais_output.ndjson",  run_hours=1)
+    # run_file_reader(input_txt="sent_ais.txt", out_ndjson="test_ais_output.ndjson")
