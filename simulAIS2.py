@@ -160,6 +160,7 @@ def run_socket_reader(
 
                     # 原樣寫 raw 檔（保持原始換行；若最後無換行，就補一個）
                     text = data.decode("ascii", errors="ignore")
+                    print(text)
                     if not text.endswith("\n"):
                         text += "\n"
                     raw_file_write.write(text)
@@ -225,6 +226,6 @@ if __name__ == "__main__":
         port=3333,
         out_ndjson="ais_data.ndjson",
         out_raw="ais_raw_log.txt",
-        run_minutes=5,        # 跑 60 分鐘；要短測就改 1
+        run_minutes=5,        # 跑多久分鐘；
         recv_bufsize=4096      # 4096/8192 都行；正確性與這個值無關
     )
