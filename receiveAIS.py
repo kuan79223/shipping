@@ -40,9 +40,7 @@ class ReceiveAIS(object):
         total_chunks = 0
 
         print(f"{connect_time} Start...")
-
         buffer_str = ""  # 用來累積不完整的 AIS 訊息
-
         try:
             with open(self.save_ndjson, "a", encoding="utf-8") as json_file_write, \
                     open(self.log_txt, "a", encoding="utf-8") as txt_file_write, \
@@ -59,17 +57,27 @@ class ReceiveAIS(object):
                     total_chunks += 1
 
                     # 將 chunk 拆行，逐行處理
-                    lines = text.replace("\r", "\n").split("\n")
+                    lines = text.replace("", "\n").split("\n")
                     for line in lines:
                         line = line.strip()
                         if not line:
                             continue
 
-                        # 若碰到新的 AIS 訊號開頭，重置 buffer
+                        # 若碰到新的 AIS 訊號 !AIVDM ; !AIVDO 開頭，重置 buffer
                         if line.startswith(AIS_STARTS):
+                            if buffer_str:  # 若前一條訊息存在，檢查是否為完整訊息
+                                # 檢查上一條訊息是否完整
+                                if is_complete_ais(buffer_str):
+                                    ais_msg = pyais.decode(buffer_str)  # 解碼訊息
+                                    ais_complete += 1
+                                    dict_ais_msg = ais_savin_dict(ais_msg, now_time=datetime.now())
+                                    json.dump(dict_ais_msg, json_file_write, ensure_ascii=False)
+                                    json_file_write.write("\n")
+                                    json_file_write.flush()
                             buffer_str = line
                         else:
                             buffer_str += line  # 累積可能跨行的訊息
+                            print(f'字串相加 {buffer_str}')
 
                         # 判斷是否完整
                         if is_complete_ais(buffer_str):
@@ -87,10 +95,9 @@ class ReceiveAIS(object):
 
                                 ais_complete += 1
                             except Exception as e:
-                                # 解碼錯誤記錄
+                                # 解碼錯誤記錄 xxxxxxxxxxxxxxxxxxxxxxxx
                                 error_file.write(f"{buffer_str}\n")
-
-                            buffer_str = ""  # 清空 buffer，準備下一條訊息
+                                buffer_str = ""  # 清空 buffer，準備下一條訊息
 
         except KeyboardInterrupt:
             print("⚠️ 手動中止")
@@ -152,15 +159,15 @@ def haversine(lon1, lat1, lon2, lat2):
     distance = R * c  # 距離（公里）
     return distance
 
-# 整合AIS 訊號
+# 判斷 字串最後面校正碼 是否正確
 def is_complete_ais(str_msg):
     str_info = str_msg.strip()
-    # 判斷字串訊息內有無「*」字
+    # 檢查 * 字符後面的 校驗碼 部分是否符合 NMEA 訊息的格式
     if '*' not in str_info:
         return False
-    # 找到 * 的位置，並確認 * 後面剛好有 2 個字元。依 NMEA 格式，* 後面必須跟著兩位 16 進位數字（校驗值）。
+    # 返回 '*' 後的索引位置
     star = str_info.rfind('*')
-
+    # 從字串 '*' 右邊開始找，後面剛好有 2 個字元。依 NMEA 格式，* 後面必須跟著兩位 16 進位數字（校驗值）。
     if len(str_info) - star - 1 != 2:  # *HH (兩位 HEX)
         return False
     # 取出 * 面的那兩個字元，檢查是否都是合法的 16 進位字元（0–9, A–F, a–f）。
@@ -168,10 +175,11 @@ def is_complete_ais(str_msg):
     # 字串內每個結果都是 True 才會 return True
     return all(c in '0123456789abcdefABCDEF' for c in chk)
 
-
+# 用在讀取文字檔
 def iter_complete_ais_from_text(lines_iterable):
     str_buf = ''
     buffer_flag = False
+
     for raw in lines_iterable:
         line = raw.strip()
         if not line:
@@ -192,19 +200,6 @@ def iter_complete_ais_from_text(lines_iterable):
             yield str_buf
             str_buf = ''
             buffer_flag = False
-
-def bytes_stream_to_lines(byte_chunks):
-    """把 socket chunk 切成行：支援 \r\n / \n / \r"""
-    carry = ""
-    for chunk in byte_chunks:
-        text = chunk.decode("ascii", errors="ignore")
-        text = text.replace("\r", "\n")
-        parts = (carry + text).split("\n")
-        *full, carry = parts
-        for line in full:
-            yield line
-    if carry:
-        yield carry  # 末尾殘段（可能不完整）
 
 
 def ais_savin_dict(ais_msg, now_time=None):

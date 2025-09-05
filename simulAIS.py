@@ -235,5 +235,5 @@ def ais_savin_dict(ais_msg, now_time=None):
 
 if __name__ == '__main__':
 
-    run_socket_reader(host=HOST, port=PORT, out_ndjson="ais_output.ndjson",  run_hours=1)
-    # run_file_reader(input_txt="sent_ais.txt", out_ndjson="test_ais_output.ndjson")
+    # run_socket_reader(host=HOST, port=PORT, out_ndjson="ais_output.ndjson",  run_hours=1)
+    run_file_reader(input_txt="sent_ais.txt", out_ndjson="test_ais_output.ndjson")
