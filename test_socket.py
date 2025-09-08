@@ -56,16 +56,17 @@ total_msg = 0
 ais_complete = 0
 
 dict_ais_msg = dict()
-dict_msg_parts = dict()
-fragmented_msgs = dict()
+dict_fragment = dict()
 
 try:
-    with open("ais_log.txt", "a", encoding="utf-8") as txt_file_write, \
-        open("ais_data.ndjson", "a", encoding="utf-8") as json_file_write:
+    with (open("ais_log.txt", "a", encoding="utf-8") as txt_file_write, \
+        open("ais_data.ndjson", "a", encoding="utf-8") as json_file_write):
 
         # while datetime.now() < deadline:
         while True:
             text = sock.recv(1024) # 括號內為字數值  256 / 8 = 32
+            print(text)
+            print()
             # print(text.__class__)  #　bytes
             # print(str(text))  # b'A,M,1,,,,,,,,,,,,,99.99,99.99,99.99*22\r\n'
             if not text:
@@ -75,57 +76,51 @@ try:
             ais_ascii = text.decode("ascii")
             # print(ascii_msg)
             # print(' ------------------------- ')
-            txt_file_write.writelines(str(text))
-            txt_file_write.flush()
             # print(ascii_msg.__class__) # str
             # print(ascii_msg)
-            parts = ais_ascii.split(',')
-            print(parts)
-            # 假如完整句子直接解碼
-            if parts[1] == '1' and text.startswith(b'!AIVDM') and text.endswith(b'\r\n'):
-                ascii_msg = text.decode('ascii')
-                decode_ais = pyais.decode(ascii_msg.replace('\r\n', ''))
+            txt_file_write.writelines(str(text))
+            txt_file_write.flush()
 
-                print(f'完整句子直接解碼 :{ascii_msg}')
+            # 必須先有 AIVDM 訊號
+            if text.startswith(b'!AIVDM'):
+                ais_ascii = text.decode("ascii")
+                parts = ais_ascii.split(',')
+                total_fragments = int(parts[1])  # 總共訊息數
+                current_fragment = int(parts[2])  # 目前是第幾個訊息
 
-                dict_ais_msg = ais_savin_dict(decode_ais)
-                json.dump(dict_ais_msg, json_file_write, ensure_ascii=False)
-                json_file_write.write('\n')
-                json_file_write.flush()
-                ais_complete += 1  # ← 每筆完整 AIS 就 +1
-            # 起頭給狀態
-            elif len(parts) > 1 and text.startswith(b'!AIVDM'):
-                buffer_msg = text
+                print('收到 AIVDM 訊號 -------------')
                 flag_VDM = True
-                # buffer_msg = ascii_msg
-                print(f'句子的頭部是AIVDM :{buffer_msg}')
-                fragment_number = int(parts[2])
-                total_fragments = int(parts[1])
+                buffer_msg = text
 
-                # Store the fragments in a dictionary
-                if fragment_number not in fragmented_msgs:
-                    fragmented_msgs[fragment_number] = []
+                if flag_VDM and text.endswith(b'\r\n'):
+                    buffer_msg += text
+                    print(f'完整句子直接解碼 :{text}')
+                    decode_ais = pyais.decode(ais_ascii.replace('\r\n', ''))
+                    dict_ais_msg = ais_savin_dict(decode_ais)
+                    json.dump(dict_ais_msg, json_file_write, ensure_ascii=False)
+                    json_file_write.write('\n')
+                    json_file_write.flush()
+                    ais_complete += 1  # ← 每筆完整 AIS 就 +1
+                    flag_VDM = False
+                    break
+                # 在狀態之下，繼續串文字
+                elif flag_VDM:
+                    buffer_msg += text
+                    print(f'沒有遇到 \r\n 繼續串文字 :{buffer_msg}')
 
-                # Add the fragment data to the dictionary
-                fragmented_msgs[fragment_number].append(parts[4])
+                # 不是完整句子判斷AIVDM起頭給狀態
+                # if fragment_number >= 2:
 
-            # 需要有 AIVDM 與 換行
-            elif flag_VDM and text.endswith(b'\r\n'):
-                buffer_msg += text
-                ascii_msg = buffer_msg.decode('ascii').replace('\r\n', '')
-                decode_ais = pyais.decode(ascii_msg)
-                print(f'得到換行符號句子 {buffer_msg}, \n進行解碼 :{decode_ais}')
-                flag_VDM = False
+                #     # Store the fragments in a dictionary
+                #     if current_fragment not in dict_fragment:
+                #         dict_fragment[current_fragment] = []
 
-                dict_ais_msg = ais_savin_dict(decode_ais)
-                json.dump(dict_ais_msg, json_file_write, ensure_ascii=False)
-                json_file_write.write('\n')
-                json_file_write.flush()
-                ais_complete += 1  # ← 每筆完整 AIS 就 +1
-
-            # 找不到換行，繼續串
-            elif flag_VDM:
-                buffer_msg += text
+                #     # Add the fragment data to the dictionary
+                #     dict_fragment[current_fragment].append(parts[5])
+                    #
+                    # elif flag_VDM and fragment_number == 1:
+                    #     if text.endswith(b'\r\n'):
+                    #      pass
 
 
 except KeyboardInterrupt:

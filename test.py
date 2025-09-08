@@ -34,3 +34,20 @@ decode_ais = pyais.decode(text)
 # print(decode_ais)
 
 
+list1 = ['AIVDM', '2', '1', 'xxxxxxxxx']
+print(int(list1[2]))
+
+list2 = ['AIVDM', '2', '2', '0000']
+
+dict1 = dict()
+dict1[0] = []
+dict1[0].append(list1[3])
+dict1[0].append(list2[3])
+print(dict1)
+
+
+result = ''.join(dict1[0])
+print(result)
+
+# result = ''.join(dict1[k] for k in sorted(dict1.keys()))
+# print(result)
