@@ -60,10 +60,11 @@ with open("ais_data.ndjson", "a", encoding="utf-8") as json_file, \
             if datetime.now() >= deadline:
                 print("⏰ 時間到，停止接收")
                 break
-            print(sentence)
+            # print(sentence)
             total_received += 1  # 不管能不能解碼，都算收到一次
 
             raw_str = str(sentence)  # 原始 NMEA sentence（含 !AIVDM,...,*hh）
+
             txt_file.write(raw_str + "\n")  # 存到 txt 檔
             txt_file.flush()
 
@@ -82,7 +83,7 @@ with open("ais_data.ndjson", "a", encoding="utf-8") as json_file, \
                 json_file.write("\n")
                 json_file.flush()
                 ais_complete += 1
-                print(f"✅ AIS 解碼成功 ({ais_complete}): {dict_msg}")
+                # print(f"✅ AIS 解碼成功 ({ais_complete}): {dict_msg}")
             except Exception as e:
                 ais_failed += 1
                 fail_file.write(raw_str + f"  <-- 解碼失敗: {e}\n")
